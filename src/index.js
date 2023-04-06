@@ -26,11 +26,27 @@ ajvKeywords(ajv);
 
 const validate = ajv.compile(optionsSchema);
 
+let aliasMap: ?Map<string, string> = null;
+
 const getTargetResourcePath = (importedPath: string, stats: *) => {
   const targetFileDirectoryPath = dirname(stats.file.opts.filename);
 
   if (importedPath.startsWith('.')) {
     return resolve(targetFileDirectoryPath, importedPath);
+  }
+
+  if (!importedPath.startsWith('.') && stats.opts.alias) {
+    if (!aliasMap) {
+      aliasMap = new Map(Object.entries(stats.opts.alias));
+    }
+    const aliasKey = importedPath.split('/')[0];
+    if (aliasMap?.has(aliasKey)) {
+      const aliasPath: string | void = aliasMap?.get(aliasKey);
+      if (typeof aliasPath !== 'string') {
+        throw new Error(`Cannot resolve alias path for ${importedPath}`);
+      }
+      return resolve(aliasPath, importedPath.replace(aliasKey, '.'));
+    }
   }
 
   return require.resolve(importedPath);
